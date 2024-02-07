@@ -1,3 +1,4 @@
+let house;
 function setup() {
     const propertyLine = [
         createVector(50, 100),
@@ -18,12 +19,12 @@ function setup() {
 
     drawPropertyLineAndAccessLine(propertyLine, accessLine);
     //generate a random house within the bounds of the property line
-    let house = new House(1, {}, propertyLine, accessLine);
+    house = new House(1, {}, propertyLine, accessLine);
     house.draw();
 
     // Save button
     const btnSave = createButton("Save House");
-    btnSave.position(10, 420);
+    btnSave.position(10, height + 20);
     btnSave.mousePressed(() => {
         const serializedHouse = house.serialize();
         localStorage.setItem("savedHouse", serializedHouse);
@@ -32,7 +33,7 @@ function setup() {
 
     // Load button
     const btnLoad = createButton("Load House");
-    btnLoad.position(100, 420);
+    btnLoad.position(100, height + 20);
     btnLoad.mousePressed(() => {
         const savedHouseData = localStorage.getItem("savedHouse");
         if (savedHouseData) {
@@ -102,10 +103,6 @@ function isPointInPolygon(point, polygon) {
     return isInside;
 }
 
-function createRandomPoint() {
-    return createVector(random(100, 300), random(100, 300)); // Adjust according to your bounding box
-}
-
 function createRandomPointInPolygon(polygon) {
     // Calculate bounding box
     let minX = Infinity,
@@ -118,8 +115,11 @@ function createRandomPointInPolygon(polygon) {
         if (vertex.y < minY) minY = vertex.y;
         if (vertex.y > maxY) maxY = vertex.y;
     }
-
-    return createVector(random(minX, maxX), random(minY, maxY));
+    let tryPoint = createVector(random(minX, maxX), random(minY, maxY));
+    while (!isPointInPolygon(tryPoint, polygon)) {
+        tryPoint = createVector(random(minX, maxX), random(minY, maxY));
+    }
+    return tryPoint;
 }
 
 function calculateCentroid(points) {
