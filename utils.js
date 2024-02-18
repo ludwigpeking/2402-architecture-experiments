@@ -1,89 +1,3 @@
-class PriorityQueue {
-    constructor() {
-        this.heap = [];
-    }
-
-    enqueue(element, priority) {
-        const newNode = new Node(element, priority);
-        this.heap.push(newNode);
-        this.bubbleUp();
-    }
-
-    dequeue() {
-        if (this.isEmpty()) {
-            return null;
-        }
-        this.swap(0, this.heap.length - 1); // Swap the first and last node
-        const min = this.heap.pop(); // Remove the last node (min)
-        this.sinkDown(0); // Adjust the heap
-        return min.element;
-    }
-
-    bubbleUp() {
-        let index = this.heap.length - 1;
-        const node = this.heap[index];
-
-        while (index > 0) {
-            let parentIndex = Math.floor((index - 1) / 2);
-            let parent = this.heap[parentIndex];
-
-            if (node.priority >= parent.priority) break;
-
-            this.swap(index, parentIndex);
-            index = parentIndex;
-        }
-    }
-
-    sinkDown(index) {
-        const length = this.heap.length;
-        const element = this.heap[index];
-
-        while (true) {
-            let leftChildIndex = 2 * index + 1;
-            let rightChildIndex = 2 * index + 2;
-            let leftChild, rightChild;
-            let swap = null;
-
-            if (leftChildIndex < length) {
-                leftChild = this.heap[leftChildIndex];
-                if (leftChild.priority < element.priority) {
-                    swap = leftChildIndex;
-                }
-            }
-
-            if (rightChildIndex < length) {
-                rightChild = this.heap[rightChildIndex];
-                if (
-                    (swap === null && rightChild.priority < element.priority) ||
-                    (swap !== null && rightChild.priority < leftChild.priority)
-                ) {
-                    swap = rightChildIndex;
-                }
-            }
-
-            if (swap === null) break;
-
-            this.swap(index, swap);
-            index = swap;
-        }
-    }
-
-    swap(i, j) {
-        [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
-    }
-
-    isEmpty() {
-        return this.heap.length === 0;
-    }
-}
-
-class Node {
-    constructor(element, priority) {
-        this.element = element;
-        this.priority = priority;
-    }
-}
-
 function drawPropertyLineAndAccessLine(propertyLine, accessLine) {
     stroke(0);
     strokeWeight(1);
@@ -125,16 +39,21 @@ function drawPolygon(points, closeLoop = false) {
     }
 }
 
-function isPointInPolygon(point, polygon) {
+function isPointInPolygon(point, polygon, tolerance = 0.0000001) {
     let isInside = false;
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        if (
-            polygon[i].y > point.y != polygon[j].y > point.y &&
-            point.x <
-                ((polygon[j].x - polygon[i].x) * (point.y - polygon[i].y)) /
-                    (polygon[j].y - polygon[i].y) +
-                    polygon[i].x
-        ) {
+        // Check if point is approximately on the same height as the vertex, allowing for tolerance
+        let onEdgeY =
+            polygon[i].y > point.y - tolerance !=
+            polygon[j].y > point.y + tolerance;
+        // Calculate cross product with an added tolerance to effectively widen the edge detection
+        let crossProduct =
+            ((polygon[j].x - polygon[i].x) * (point.y - polygon[i].y)) /
+                (polygon[j].y - polygon[i].y) +
+            polygon[i].x -
+            point.x;
+
+        if (onEdgeY && crossProduct < tolerance) {
             isInside = !isInside;
         }
     }
@@ -190,20 +109,31 @@ function areaCalculation(vertices) {
 
 //function to test if two edges interest each other
 function lineIntersect(p1, p2, p3, p4) {
+    const tolerance = 1e-10; // A small tolerance value
     const denominator =
         (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
-    if (denominator === 0) {
-        return null;
+
+    if (Math.abs(denominator) < tolerance) {
+        return null; // Lines are parallel or coincident
     }
+
     const ua =
         ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) /
         denominator;
     const ub =
         ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) /
         denominator;
-    if (ua < 0 || ua > 1 || ub < 0 || ub > 1) {
-        return null;
+
+    // Adjusting conditions to exclude exact endpoints with a tolerance
+    if (
+        ua <= tolerance ||
+        ua >= 1 - tolerance ||
+        ub <= tolerance ||
+        ub >= 1 - tolerance
+    ) {
+        return null; // Intersection is too close to the endpoints or outside the line segments
     }
+
     return new p5.Vector(p1.x + ua * (p2.x - p1.x), p1.y + ua * (p2.y - p1.y));
 }
 
@@ -289,72 +219,90 @@ function isLineInsidePolygon(start, end, polygon) {
             return false;
         }
     }
+    //check the middle point of the line is inside the polygon
+    const middle = p5.Vector.lerp(start, end, 0.5);
+    if (!isPointInPolygon(middle, polygon)) {
+        return false;
+    }
     return true;
 }
 
 function simplifiedAStar(start, goal, polygon) {
-    let openSet = [start, goal, ...polygon]; // Include all nodes initially
-    let nodes = [start, goal, ...polygon]; // Include all nodes initially
-    let cameFrom = new Map(); // To reconstruct the path later
+    // console.log("start", start, "goal", goal, "polygon", polygon);
+    const openSet = [start]; // Include all nodes initially
+    const nodes = [start, goal, ...polygon]; // Include all nodes initially
+    //reset the g, f, h scores and cameFrom of all nodes
+    for (let i = 0; i < nodes.length; i++) {
+        nodes[i].g = Infinity;
+        nodes[i].f = Infinity;
+        nodes[i].h = heuristic(nodes[i], goal);
+        nodes[i].cameFrom = null;
+    }
+    let current = start;
+    start.g = 0;
+    start.f = start.h;
+    const path = [];
 
-    let gScore = {}; // Cost from start to a node
-    nodes.forEach((node) => (gScore[node] = Infinity));
-    gScore[start] = 0;
-
-    // The fScore is solely based on the heuristic since all nodes are neighbors
-    let fScore = {};
-    nodes.forEach((node) => (fScore[node] = heuristic(node, goal)));
+    // console.log("nodes", nodes);
 
     while (openSet.length > 0) {
         // Sort nodes in openSet by fScore and select the one with the lowest fScore
-        openSet.sort((a, b) => fScore[a] - fScore[b]);
+        openSet.sort((a, b) => a.f - b.f);
         let current = openSet.shift(); // Remove and get the first element
 
         // If the current node is the goal, reconstruct and return the path
         if (current === goal) {
-            return calculatePathDistance(reconstructPath(cameFrom, current));
+            // console.log("Path found", " path length", calculatePathDistance(reconstructPath( start, goal)), "direct length", p5.Vector.dist(start, goal));
+            noFill();
+            stroke(0, 255, 0);
+            // line(start.x, start.y, goal.x, goal.y);
+            return reconstructPath(start, goal);
         }
 
         // Attempt to move to every other node, checking if the path is inside the polygon
         nodes.forEach((neighbor) => {
-            if (neighbor === current) return; // Skip self
-
-            // Calculate tentative gScore as distance from start to this neighbor
-            let tentativeGScore =
-                gScore[current] + heuristic(current, neighbor);
-
-            // Only proceed if the line between current and neighbor is inside the polygon
             if (
-                isLineInsidePolygon(current, neighbor) &&
-                tentativeGScore < gScore[neighbor]
+                neighbor === current ||
+                !isLineInsidePolygon(current, neighbor, polygon)
             ) {
-                cameFrom.set(neighbor, current);
-                gScore[neighbor] = tentativeGScore;
-                fScore[neighbor] = tentativeGScore + heuristic(neighbor, goal);
-
-                // Add the neighbor to openSet if it's not already there (since all nodes are neighbors, we skip this step)
+                return;
+            } else {
+                let tentativeGScore = current.g + heuristic(current, neighbor);
+                if (tentativeGScore < neighbor.g) {
+                    neighbor.cameFrom = current;
+                    neighbor.g = tentativeGScore;
+                    neighbor.f = neighbor.g + heuristic(neighbor, goal);
+                    if (!openSet.includes(neighbor)) {
+                        openSet.push(neighbor);
+                    }
+                }
             }
         });
     }
 
     // If no path is found, return an empty array
-    return [];
-}
-
-function reconstructPath(cameFrom, current) {
-    let path = [];
-    while (current !== undefined) {
-        path.unshift(current);
-        current = cameFrom.get(current);
-    }
-    noFill();
-    stroke(0, 255, 0);
-
-    for (let i = 0; i < path.length - 1; i++) {
-        drawDashLine(path[i], path[i + 1], 10); // Assuming dashLength of 10
-    }
     return path;
 }
+
+function reconstructPath(start, goal) {
+    let current = goal;
+    const path = [current];
+    while (current !== start) {
+        current = current.cameFrom;
+        path.push(current);
+    }
+    // console.log("path", path);
+    //draw the path with dash line
+    noFill();
+    stroke(0, 255, 0, lineOpacity * 10);
+    for (let i = 0; i < path.length - 1; i++) {
+        // drawDashLine(path[i], path[i + 1], 5);
+        line(path[i].x, path[i].y, path[i + 1].x, path[i + 1].y);
+    }
+
+    return path.reverse();
+}
+
 // calculate the reconstructedPath distance
 function calculatePathDistance(path) {
     let distance = 0;
