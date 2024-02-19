@@ -45,7 +45,8 @@ function createGenotype(propertyLine, segments = 8, numberOfFloors = 1) {
 }
 
 class House {
-    constructor(genotype, segments = 8) {
+    constructor(genotype, atFrame) {
+        this.atFrame = atFrame;
         this.genotype = genotype;
         this.floors = [];
         // console.log("genotype", genotype, "propertyLine", propertyLine);
@@ -58,7 +59,11 @@ class House {
         }
         this.randomCentralPoint = this.genotype[this.genotype.length - 1];
         this.generateGroundFloor();
-        this.analyseEfficiency(1000, externalEntranceRate);
+        this.sumDistance = 0;
+        this.testRounds = 0;
+        this.efficiency = 0;
+        this.tested30000 = false;
+        this.analyseEfficiency(10000, externalEntranceRate, false);
     }
 
     generateGroundFloor() {
@@ -110,11 +115,11 @@ class House {
 
         // console.log("DRAWN");
     }
-    analyseEfficiency(testRounds, enterExitPercentage = 0.1, show = false) {
+    analyseEfficiency(samples, enterExitPercentage = 0.1, show) {
         //two types of tests. first, generate 2 random points in the ground floor
         let sumDistance = 0;
 
-        for (let i = 0; i < testRounds * (1 - enterExitPercentage); i++) {
+        for (let i = 0; i < samples * (1 - enterExitPercentage); i++) {
             const point1 = createRandomPointInPolygon(
                 this.groundFloor.vertices
             );
@@ -126,7 +131,12 @@ class House {
             ) {
                 //if not, use pathfinding to find the shortest path between the two points
                 sumDistance += calculatePathDistance(
-                    simplifiedAStar(point1, point2, this.groundFloor.vertices)
+                    simplifiedAStar(
+                        point1,
+                        point2,
+                        this.groundFloor.vertices,
+                        show
+                    )
                 );
             } else {
                 if (show) {
@@ -139,7 +149,7 @@ class House {
                 sumDistance += distance;
             }
         }
-        for (let i = 0; i < testRounds * enterExitPercentage; i++) {
+        for (let i = 0; i < samples * enterExitPercentage; i++) {
             const point1 = createRandomPointInPolygon(
                 this.groundFloor.vertices
             );
@@ -159,7 +169,8 @@ class House {
                         simplifiedAStar(
                             point1,
                             this.doorPosition,
-                            this.groundFloor.vertices
+                            this.groundFloor.vertices,
+                            show
                         )
                     ) +
                     distanceToLine(
@@ -190,10 +201,15 @@ class House {
                 sumDistance += distance;
             }
         }
-
+        this.sumDistance += sumDistance;
+        this.testRounds += samples;
+        if (this.testRounds > 30000) {
+            this.tested30000 = true;
+        }
         // console.log("sumDistance", sumDistance);
         this.efficiency =
-            (1 / (sumDistance / sqrt(this.groundFloor.area))) * testRounds;
+            (1 / (this.sumDistance / sqrt(this.groundFloor.area))) *
+            this.testRounds;
 
         // console.log("Efficiency", this.efficiency);
     }
@@ -227,99 +243,6 @@ class House {
     // mutate() {
     //     //a vector in the genotype will be replaced by a new random vector, test the validity of the new genotype, if valid, replace the old genotype with the new one
     // }
-}
-
-function mutate(genotype) {
-    let isValid = false; // Flag to track if the new genotype is valid
-    let newGenotype = [];
-    let attempts = 0; // To prevent infinite loop
-
-    const levelNumber = genotype.length - 1;
-    const segments = genotype[0].length - 2;
-    const flattenedGenotype = genotype.slice(0).flat(2);
-
-    while (!isValid && attempts < 1000) {
-        // Limit attempts to avoid infinite loop
-        // Flatten all the elements in the genotype array layers
-
-        const randomIndex = floor(random(0, flattenedGenotype.length));
-        const randomMove = p5.Vector.random2D().mult(random(1, 100));
-        // const randomPoint = createRandomPointInPolygon(propertyLine);
-        if (flattenedGenotype[randomIndex] !== null) {
-            let vectorCopy = flattenedGenotype[randomIndex]
-                .copy()
-                .add(randomMove);
-
-            // Now, use vectorCopy instead of directly modifying the original vector
-            flattenedGenotype[randomIndex] = vectorCopy;
-            // console.log(
-            //     "randomIndex",
-            //     randomIndex,
-            //     "randomPoint",
-            //     randomPoint,
-            //     "flattenedGenotype[randomIndex]",
-            //     flattenedGenotype[randomIndex]
-            // );
-
-            //sort the polygon vertices of each floor
-            for (let i = 0; i < levelNumber; i++) {
-                let toSort = flattenedGenotype.slice(
-                    i * (segments + 2),
-                    (i + 1) * (segments + 2) - 2
-                );
-                sortVertices(toSort);
-                for (let j = 0; j < toSort.length; j++) {
-                    flattenedGenotype[i * (segments + 2) + j] = toSort[j];
-                }
-            }
-
-            newGenotype = [];
-            for (let i = 0; i < levelNumber; i++) {
-                //use sortVertices to sort the segement number of vertices of each floor
-
-                newGenotype.push(
-                    flattenedGenotype.slice(
-                        i * (segments + 2),
-                        (i + 1) * (segments + 2)
-                    )
-                );
-                // sortVertices(newGenotype[i].slice(0, segments));
-            }
-            // console.log("flattenedGenotype", flattenedGenotype);
-            newGenotype.push(flattenedGenotype.slice(-1)[0]); // Ensure the last element is included correctly
-
-            // Check the validity of the new genotype
-            isValid = true; // Assume valid until proven otherwise
-            for (let i = 0; i < segments; i++) {
-                if (!isPointInPolygon(newGenotype[0][i], propertyLine)) {
-                    isValid = false;
-                }
-            }
-
-            for (let i = 1; i < levelNumber && isValid; i++) {
-                for (let j = 0; j < segments; j++) {
-                    if (
-                        !isPointInPolygon(newGenotype[i][j], newGenotype[i - 1])
-                    ) {
-                        isValid = false;
-                    }
-                }
-            }
-            if (
-                !isPointInPolygon(
-                    newGenotype[newGenotype.length - 1],
-                    newGenotype[0].slice(0, segments)
-                )
-            ) {
-                isValid = false;
-            }
-        }
-        attempts++;
-    }
-    // console.log("IsValid", isValid);
-    // Return the original genotype if a valid mutation wasn't found
-    // Otherwise, return the valid new genotype
-    return isValid ? newGenotype : genotype;
 }
 
 House.prototype.serialize = function () {
@@ -374,17 +297,4 @@ class Floor {
         stroke(0, 0, 0);
         drawPolygon(this.vertices, true);
     }
-}
-
-function mutateVertexWithinProperty(vertex, propertyLine) {
-    let mutatedVertex;
-    let attempts = 0;
-    do {
-        // Small, controlled random movement
-        const movement = p5.Vector.random2D().mult(random(1, 10)); // Adjust the range as needed
-        mutatedVertex = vertex.copy().add(movement);
-        attempts++;
-    } while (!isPointInPolygon(mutatedVertex, propertyLine) && attempts < 100);
-
-    return attempts < 100 ? mutatedVertex : vertex; // Return mutated vertex if valid, else original
 }

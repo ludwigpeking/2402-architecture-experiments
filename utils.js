@@ -227,9 +227,10 @@ function isLineInsidePolygon(start, end, polygon) {
     return true;
 }
 
-function simplifiedAStar(start, goal, polygon) {
+function simplifiedAStar(start, goal, polygon, show = false) {
     // console.log("start", start, "goal", goal, "polygon", polygon);
     const openSet = [start]; // Include all nodes initially
+    const closedSet = [];
     const nodes = [start, goal, ...polygon]; // Include all nodes initially
     //reset the g, f, h scores and cameFrom of all nodes
     for (let i = 0; i < nodes.length; i++) {
@@ -248,21 +249,22 @@ function simplifiedAStar(start, goal, polygon) {
     while (openSet.length > 0) {
         // Sort nodes in openSet by fScore and select the one with the lowest fScore
         openSet.sort((a, b) => a.f - b.f);
-        let current = openSet.shift(); // Remove and get the first element
-
+        current = openSet.shift(); // Remove and get the first element
+        closedSet.push(current);
         // If the current node is the goal, reconstruct and return the path
         if (current === goal) {
             // console.log("Path found", " path length", calculatePathDistance(reconstructPath( start, goal)), "direct length", p5.Vector.dist(start, goal));
             noFill();
             stroke(0, 255, 0);
             // line(start.x, start.y, goal.x, goal.y);
-            return reconstructPath(start, goal);
+            return reconstructPath(start, goal, show);
         }
 
         // Attempt to move to every other node, checking if the path is inside the polygon
         nodes.forEach((neighbor) => {
             if (
                 neighbor === current ||
+                closedSet.includes(neighbor) ||
                 !isLineInsidePolygon(current, neighbor, polygon)
             ) {
                 return;
@@ -284,7 +286,7 @@ function simplifiedAStar(start, goal, polygon) {
     return path;
 }
 
-function reconstructPath(start, goal) {
+function reconstructPath(start, goal, show = false) {
     let current = goal;
     const path = [current];
     while (current !== start) {
@@ -293,11 +295,13 @@ function reconstructPath(start, goal) {
     }
     // console.log("path", path);
     //draw the path with dash line
-    noFill();
-    stroke(0, 255, 0, lineOpacity * 10);
-    for (let i = 0; i < path.length - 1; i++) {
-        // drawDashLine(path[i], path[i + 1], 5);
-        line(path[i].x, path[i].y, path[i + 1].x, path[i + 1].y);
+    if (show) {
+        noFill();
+        stroke(0, 255, 0, lineOpacity * 10);
+        for (let i = 0; i < path.length - 1; i++) {
+            // drawDashLine(path[i], path[i + 1], 5);
+            line(path[i].x, path[i].y, path[i + 1].x, path[i + 1].y);
+        }
     }
 
     return path.reverse();
