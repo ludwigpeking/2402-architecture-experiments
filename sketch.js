@@ -3,7 +3,7 @@ const genePool = [];
 const propertyLineNodes = [50, 100, 200, 50, 300, 100, 300, 300, 100, 300];
 const accessLine = [3]; //accessible segment index or indices in the property line
 const propertyLine = createPropertyline(propertyLineNodes);
-const externalEntranceRate = 0.1;
+const externalEntranceRate = 0.5;
 const lineOpacity = 10;
 const numberOfSegments = 12;
 const recording = false;
@@ -91,8 +91,8 @@ function draw() {
         .map((house) => duplicateAndMutate(house));
     let crossOverHouses = [];
     for (let i = 0; i < 20; i++) {
-        let crossParent1 = random(houses.slice(0, 200));
-        let crossParent2 = random(houses.slice(0, 3000));
+        let crossParent1 = random(houses.slice(0, 20));
+        let crossParent2 = random(houses.slice(0, 1000));
         let crossOverHouse = twoHousesCrossOver(crossParent1, crossParent2);
         crossOverHouses.push(crossOverHouse);
     }
@@ -102,6 +102,7 @@ function draw() {
     //recalculate the efficiency of each house
 
     houses.sort((a, b) => b.efficiency - a.efficiency);
+    houses = houses.slice(0, 2000);
 
     //calculate the average efficiency of the top 100 houses
     let averageEfficiency = houses
