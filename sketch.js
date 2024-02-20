@@ -1,9 +1,20 @@
 let houses = [];
 const genePool = [];
-const propertyLineNodes = [50, 100, 200, 50, 300, 100, 300, 300, 100, 300];
-const accessLine = [3]; //accessible segment index or indices in the property line
-const propertyLine = createPropertyline(propertyLineNodes);
-const externalEntranceRate = 0.5;
+const propertyLineNodeNumber = 6;
+const windowSize = 300;
+const windowNumber = [3, 3];
+const headBarSize = 150;
+// const propertyLineNodes = [
+//     50, 100, 200, 50, 300, 100, 300, 200, 200, 200, 100, 300,
+// ];
+const propertyLineNodes = convert2DArrayTo1D(
+    generateNonIntersectingPolygon(propertyLineNodeNumber)
+); //normalized to 1
+
+// const accessLine = [2, 3, 4]; //accessible segment index or indices in the property line
+const accessLine = accessLineGeneration(3);
+const propertyLine = createPropertyline(propertyLineNodes, windowSize);
+const externalEntranceRate = 0.1;
 const lineOpacity = 10;
 const numberOfSegments = 12;
 const recording = false;
@@ -81,7 +92,7 @@ function setup() {
 
 function draw() {
     frameRate(10);
-    if (frameCount > 1000) {
+    if (frameCount > 1) {
         noLoop();
     }
     //print frame number
@@ -183,16 +194,6 @@ function draw() {
         let fileName = "frame" + nf(frameCount, 3) + ".png"; // nf() adds leading zeros
         saveCanvas(fileName, "png");
     }
-}
-
-function createPropertyline(propertyLineNodes) {
-    const propertyLine = [];
-    for (let i = 0; i < propertyLineNodes.length; i += 2) {
-        propertyLine.push(
-            new p5.Vector(propertyLineNodes[i], propertyLineNodes[i + 1])
-        );
-    }
-    return propertyLine;
 }
 
 function showTheGridOfHouses(u, v) {

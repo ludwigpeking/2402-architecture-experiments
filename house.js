@@ -5,11 +5,32 @@
 
 function createGenotype(propertyLine, segments = 8, numberOfFloors = 1) {
     const genotype = [];
-    const groundfloorGenotype = [];
-    for (let i = 0; i < segments; i++) {
-        groundfloorGenotype.push(createRandomPointInPolygon(propertyLine));
+    let groundfloorGenotype = [];
+    let isValid = false;
+    let attempts = 0;
+
+    while (!isValid && attempts < 100) {
+        isValid = true;
+        groundfloorGenotype = [];
+        for (let i = 0; i < segments; i++) {
+            groundfloorGenotype.push(createRandomPointInPolygon(propertyLine));
+        }
+        sortVertices(groundfloorGenotype);
+        //test if all edges of the ground floor are inside the property line
+        for (let i = 0; i < segments; i++) {
+            if (
+                !isLineInsidePolygon(
+                    groundfloorGenotype[i],
+                    groundfloorGenotype[(i + 1) % segments],
+                    propertyLine
+                )
+            ) {
+                isValid = false;
+            }
+        }
+        attempts++;
     }
-    sortVertices(groundfloorGenotype);
+    //TODO. other floors not tested
     if (numberOfFloors > 1) {
         groundfloorGenotype.push(
             createRandomPointInPolygon(groundfloorGenotype)
@@ -45,7 +66,7 @@ function createGenotype(propertyLine, segments = 8, numberOfFloors = 1) {
 }
 
 class House {
-    constructor(genotype, atFrame) {
+    constructor(genotype, atFrame = 0) {
         this.atFrame = atFrame;
         this.genotype = genotype;
         this.floors = [];
@@ -73,7 +94,7 @@ class House {
         let minDistance = Infinity;
         let chosenAccess = 0;
         for (let i = 0; i < accessLine.length; i++) {
-            const distance = distanceToLine(
+            const distance = distanceToEdge(
                 point,
                 propertyLine[accessLine[i]],
                 propertyLine[(accessLine[i] + 1) % propertyLine.length]
@@ -83,10 +104,20 @@ class House {
                 chosenAccess = i;
             }
         }
-        const chosenAccessVector = p5.Vector.sub(
+
+        let closestPoint = theClosestPointOnEdge(
+            point,
             propertyLine[accessLine[chosenAccess]],
             propertyLine[(accessLine[chosenAccess] + 1) % propertyLine.length]
         );
+
+        const closestLine = p5.Vector.sub(point, closestPoint);
+
+        // const chosenAccessVector = p5.Vector.sub(
+        //     propertyLine[accessLine[chosenAccess]],
+        //     propertyLine[(accessLine[chosenAccess] + 1) % propertyLine.length]
+        // );
+
         this.doorPosition = findIntersection(
             point,
             point
