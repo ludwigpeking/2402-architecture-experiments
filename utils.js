@@ -1,5 +1,5 @@
-function drawPropertyLineAndAccessLine(propertyLine, accessLine) {
-    stroke(0);
+function drawPropertyLineAndAccessLine(propertyLine, accessLine, color = 0) {
+    stroke(color);
     strokeWeight(1);
     for (let i = 0; i < propertyLine.length; i++) {
         const start = propertyLine[i];
@@ -479,6 +479,10 @@ function reconstructPath(start, goal, show = false) {
     }
 
     return path.reverse();
+}
+
+function p5vectorTo1DArray(vectorArray) {
+    return vectorArray.map((vector) => [vector.x, vector.y]).flat();
 }
 
 // calculate the reconstructedPath distance

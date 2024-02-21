@@ -5,31 +5,36 @@
 
 function createGenotype(propertyLine, segments = 8, numberOfFloors = 1) {
     const genotype = [];
-    let groundfloorGenotype = [];
-    let isValid = false;
-    let attempts = 0;
+    let groundfloorGenotype = generateNonIntersectingPolygonWithinPolygon(
+        segments,
+        0.19,
+        propertyLine
+    );
 
-    while (!isValid && attempts < 100) {
-        isValid = true;
-        groundfloorGenotype = [];
-        for (let i = 0; i < segments; i++) {
-            groundfloorGenotype.push(createRandomPointInPolygon(propertyLine));
-        }
-        sortVertices(groundfloorGenotype);
-        //test if all edges of the ground floor are inside the property line
-        for (let i = 0; i < segments; i++) {
-            if (
-                !isLineInsidePolygon(
-                    groundfloorGenotype[i],
-                    groundfloorGenotype[(i + 1) % segments],
-                    propertyLine
-                )
-            ) {
-                isValid = false;
-            }
-        }
-        attempts++;
-    }
+    // let isValid = false;
+    // let attempts = 0;
+
+    // while (!isValid && attempts < 100) {
+    //     isValid = true;
+    //     groundfloorGenotype = [];
+    //     for (let i = 0; i < segments; i++) {
+    //         groundfloorGenotype.push(createRandomPointInPolygon(propertyLine));
+    //     }
+    //     sortVertices(groundfloorGenotype);
+    //     //test if all edges of the ground floor are inside the property line
+    //     for (let i = 0; i < segments; i++) {
+    //         if (
+    //             !isLineInsidePolygon(
+    //                 groundfloorGenotype[i],
+    //                 groundfloorGenotype[(i + 1) % segments],
+    //                 propertyLine
+    //             )
+    //         ) {
+    //             isValid = false;
+    //         }
+    //     }
+    //     attempts++;
+    // }
     //TODO. other floors not tested
     if (numberOfFloors > 1) {
         groundfloorGenotype.push(
@@ -65,6 +70,67 @@ function createGenotype(propertyLine, segments = 8, numberOfFloors = 1) {
     return genotype;
 }
 
+// function createGenotype(propertyLine, segments = 8, numberOfFloors = 1) {
+//     const genotype = [];
+//     let groundfloorGenotype = [];
+//     let isValid = false;
+//     let attempts = 0;
+
+//     while (!isValid && attempts < 100) {
+//         isValid = true;
+//         groundfloorGenotype = [];
+//         for (let i = 0; i < segments; i++) {
+//             groundfloorGenotype.push(createRandomPointInPolygon(propertyLine));
+//         }
+//         sortVertices(groundfloorGenotype);
+//         //test if all edges of the ground floor are inside the property line
+//         for (let i = 0; i < segments; i++) {
+//             if (
+//                 !isLineInsidePolygon(
+//                     groundfloorGenotype[i],
+//                     groundfloorGenotype[(i + 1) % segments],
+//                     propertyLine
+//                 )
+//             ) {
+//                 isValid = false;
+//             }
+//         }
+//         attempts++;
+//     }
+//     //TODO. other floors not tested
+//     if (numberOfFloors > 1) {
+//         groundfloorGenotype.push(
+//             createRandomPointInPolygon(groundfloorGenotype)
+//         ); // staircase position
+//         groundfloorGenotype.push(p5.Vector.random2D()); //staircase direction
+//     } else {
+//         groundfloorGenotype.push(null);
+//         groundfloorGenotype.push(null);
+//     }
+//     genotype.push(groundfloorGenotype);
+
+//     for (let j = 1; j < numberOfFloors; j++) {
+//         const floorGenotype = [];
+//         for (let i = 0; i < segments; i++) {
+//             floorGenotype.push(
+//                 createRandomPointInPolygon(genotype[j - 1].slice(0, segments))
+//             );
+//         }
+//         sortVertices(floorGenotype);
+//         if (numberOfFloors > j + 1) {
+//             floorGenotype.push(createRandomPointInPolygon(floorGenotype)); //staircase position
+//             floorGenotype.push(p5.Vector.random2D()); //staircase direction
+//         } else {
+//             floorGenotype.push(null);
+//             floorGenotype.push(null);
+//         }
+//         genotype.push(floorGenotype);
+//     }
+//     //add the random central point
+//     genotype.push(createRandomPointInPolygon(genotype[0].slice(0, segments)));
+
+//     return genotype;
+// }
 class House {
     constructor(genotype, atFrame = 0) {
         this.atFrame = atFrame;
@@ -90,58 +156,121 @@ class House {
     generateGroundFloor() {
         //generate the door position
         const point = this.randomCentralPoint;
-        // circle(point.x, point.y, 5);
-        let minDistance = Infinity;
-        let chosenAccess = 0;
+        circle(point.x, point.y, 5);
+        let shortestRoute = null;
+        let shortestDistance = Infinity;
+        this.closestEdge = null;
         for (let i = 0; i < accessLine.length; i++) {
-            const distance = distanceToEdge(
-                point,
-                propertyLine[accessLine[i]],
-                propertyLine[(accessLine[i] + 1) % propertyLine.length]
+            const route = simplifiedAStarPointToEdge(
+                this.randomCentralPoint,
+                propertyLine,
+                accessLine[i],
+                false
             );
-            if (distance < minDistance) {
-                minDistance = distance;
-                chosenAccess = i;
+            if (calculatePathDistance(route) < shortestDistance) {
+                shortestRoute = route;
+                shortestDistance = calculatePathDistance(route);
+                this.closestEdge = i;
             }
         }
+        drawPolygon(shortestRoute);
 
-        let closestPoint = theClosestPointOnEdge(
-            point,
-            propertyLine[accessLine[chosenAccess]],
-            propertyLine[(accessLine[chosenAccess] + 1) % propertyLine.length]
-        );
+        // let minDistance = Infinity;
+        // let chosenAccess = 0;
+        // for (let i = 0; i < accessLine.length; i++) {
+        //     const distance = distanceToEdge(
+        //         point,
+        //         propertyLine[accessLine[i]],
+        //         propertyLine[(accessLine[i] + 1) % propertyLine.length]
+        //     );
+        //     if (distance < minDistance) {
+        //         minDistance = distance;
+        //         chosenAccess = i;
+        //     }
+        // }
 
-        const closestLine = p5.Vector.sub(point, closestPoint);
+        // let closestPoint = theClosestPointOnEdge(
+        //     point,
+        //     propertyLine[accessLine[chosenAccess]],
+        //     propertyLine[(accessLine[chosenAccess] + 1) % propertyLine.length]
+        // );
+
+        // const closestLine = p5.Vector.sub(point, closestPoint);
 
         // const chosenAccessVector = p5.Vector.sub(
         //     propertyLine[accessLine[chosenAccess]],
         //     propertyLine[(accessLine[chosenAccess] + 1) % propertyLine.length]
         // );
 
-        this.doorPosition = findIntersection(
-            point,
-            point
-                .copy()
-                .add(chosenAccessVector.rotate(HALF_PI).normalize().mult(1000)),
-            this.floors[0].vertices
-        );
+        // this.doorPosition = findIntersection(
+        //     point,
+        //     point
+        //         .copy()
+        //         .add(chosenAccessVector.rotate(HALF_PI).normalize().mult(1000)),
+        //     this.floors[0].vertices
+        // );
 
         //find the edge of the accessible edge of property line that is closest to the door position
-        let minDistanceToPropertyLine = Infinity;
-        this.closestEdge = 0;
-        for (let i = 0; i < accessLine.length; i++) {
-            const distance = distanceToLine(
-                this.doorPosition,
-                propertyLine[accessLine[i]],
-                propertyLine[(accessLine[i] + 1) % propertyLine.length]
-            );
-            if (distance < minDistanceToPropertyLine) {
-                minDistanceToPropertyLine = distance;
-                this.closestEdge = i;
-                this.currentAccessLine = accessLine[i];
+        // let minDistanceToPropertyLine = Infinity;
+        // this.closestEdge = 0;
+        // for (let i = 0; i < accessLine.length; i++) {
+        //     const distance = distanceToLine(
+        //         this.doorPosition,
+        //         propertyLine[accessLine[i]],
+        //         propertyLine[(accessLine[i] + 1) % propertyLine.length]
+        //     );
+        //     if (distance < minDistanceToPropertyLine) {
+        //         minDistanceToPropertyLine = distance;
+        //         this.closestEdge = i;
+        //         this.currentAccessLine = accessLine[i];
+        //     }
+        // }
+        const intersectPositions = [];
+        this.doorPosition = null;
+        for (let i = 0; i < this.groundFloor.vertices.length; i++) {
+            for (let j = 0; j < shortestRoute.length; j++) {
+                if (
+                    lineIntersect(
+                        this.groundFloor.vertices[i],
+                        this.groundFloor.vertices[
+                            (i + 1) % this.groundFloor.vertices.length
+                        ],
+                        shortestRoute[j],
+                        shortestRoute[(j + 1) % shortestRoute.length]
+                    )
+                ) {
+                    intersectPositions.push(
+                        lineIntersect(
+                            this.groundFloor.vertices[i],
+                            this.groundFloor.vertices[
+                                (i + 1) % this.groundFloor.vertices.length
+                            ],
+                            shortestRoute[j],
+                            shortestRoute[(j + 1) % shortestRoute.length]
+                        )
+                    );
+                }
+            }
+        }
+        let furthestDistance = 0;
+        for (let i = 0; i < intersectPositions.length; i++) {
+            if (
+                p5.Vector.dist(this.randomCentralPoint, intersectPositions[i]) >
+                furthestDistance
+            ) {
+                furthestDistance = p5.Vector.dist(
+                    this.randomCentralPoint,
+                    intersectPositions[i]
+                );
+                this.doorPosition = intersectPositions[i];
             }
         }
 
+        if (this.doorPosition) {
+            fill(255, 0, 0);
+            noStroke();
+            circle(this.doorPosition.x, this.doorPosition.y, 5);
+        }
         //draw the perpendicular line from the door position to the current access line
 
         // console.log("DRAWN");
@@ -238,10 +367,13 @@ class House {
             this.tested30000 = true;
         }
         // console.log("sumDistance", sumDistance);
+        // this.efficiency =
+        //     (1 / (this.sumDistance / sqrt(this.groundFloor.area))) *
+        //     this.testRounds;
         this.efficiency =
-            (1 / (this.sumDistance / sqrt(this.groundFloor.area))) *
-            this.testRounds;
-
+            (1 / this.sumDistance) *
+            this.testRounds *
+            this.groundFloor.area ** 0.6;
         // console.log("Efficiency", this.efficiency);
     }
 

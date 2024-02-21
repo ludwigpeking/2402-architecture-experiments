@@ -2,6 +2,7 @@ const propertyLineNodeNumber = 6;
 let house;
 let propertyLine;
 let accessLine;
+let newInnerCountour;
 
 const lineOpacity = 50;
 
@@ -25,6 +26,7 @@ function setup() {
     );
 
     console.log(normalizedrAreaPerimeteRatio(innerContour));
+    console.log("innerContour", innerContour);
     drawPropertyLineAndAccessLine(innerContour, []);
 
     let randomCentralPoint = createRandomPointInPolygon(innerContour);
@@ -95,8 +97,51 @@ function setup() {
 
     // house = new House(createGenotype(propertyLine, 8, 1), 0);
     // house.draw();
+    // newInnerCountour = testMutate(innerContour);
+    // drawPropertyLineAndAccessLine(newInnerCountour, []);
 }
 
-function p5vectorTo1DArray(vectorArray) {
-    return vectorArray.map((vector) => [vector.x, vector.y]).flat();
+// function draw() {
+//     frameRate(0.6);
+//     background(200);
+//     drawPropertyLineAndAccessLine(newInnerCountour, [], 150);
+//     newInnerCountour = testMutate(newInnerCountour);
+//     stroke(0, 0, 255);
+//     drawPropertyLineAndAccessLine(newInnerCountour, [], 50);
+//     drawPropertyLineAndAccessLine(propertyLine, accessLine);
+// }
+
+function testMutate(genotype) {
+    let newGenotype = [];
+    const segments = genotype.length;
+
+    let vectorCopy;
+    let randomIndex;
+    let attempts = 0;
+    let isValid = false;
+    while (!isValid && attempts < 100) {
+        isValid = true;
+        randomIndex = floor(random(0, segments));
+        const randomMove = p5.Vector.random2D().mult(random(0, 100));
+        vectorCopy = genotype[randomIndex].copy().add(randomMove);
+        if (!isPointInPolygon(vectorCopy, propertyLine)) {
+            isValid = false;
+        } else {
+            newGenotype = genotype.slice(0);
+            newGenotype[randomIndex] = vectorCopy;
+        }
+        do {
+            shuffle1(newGenotype);
+            attempts++;
+        } while (checkIntersections(newGenotype) && !isValid);
+        attempts++;
+    }
+
+    fill(0, 0, 255);
+    circle(genotype[randomIndex].x, genotype[randomIndex].y, 10);
+
+    fill(255, 0, 255);
+    circle(vectorCopy.x, vectorCopy.y, 10);
+
+    return newGenotype;
 }

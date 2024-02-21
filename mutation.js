@@ -14,10 +14,15 @@ function twoHousesCrossOver(house1, house2) {
 }
 
 function mutate(genotype) {
+    // let attempts =0;
+    // while (attempts < 1000) {
+    //     let newGenotype = deepCopy(genotype);
+    // }
+
     let isValid = false; // Flag to track if the new genotype is valid
     let newGenotype = [];
     let attempts = 0; // To prevent infinite loop
-
+    let inValidType = "";
     const levelNumber = genotype.length - 1;
     const segments = genotype[0].length - 2;
     const flattenedGenotype = genotype.slice(0).flat(2);
@@ -28,11 +33,15 @@ function mutate(genotype) {
 
         const randomIndex = floor(random(0, flattenedGenotype.length));
         const randomMove = p5.Vector.random2D().mult(
-            random(0, 100) //* mutationMagnitude
+            random(0, 50) //* mutationMagnitude
         );
         // const randomPoint = createRandomPointInPolygon(propertyLine);
+        // console.log(
+        //     "flattenedGenotype[randomIndex]",
+        //     flattenedGenotype[randomIndex]
+        // );
         if (flattenedGenotype[randomIndex] !== null) {
-            let vectorCopy = flattenedGenotype[randomIndex]
+            const vectorCopy = flattenedGenotype[randomIndex]
                 .copy()
                 .add(randomMove);
 
@@ -76,18 +85,31 @@ function mutate(genotype) {
 
             // Check the validity of the new genotype
             isValid = true; // Assume valid until proven otherwise
+
             for (let i = 0; i < segments; i++) {
-                if (!isPointInPolygon(newGenotype[0][i], propertyLine)) {
+                if (
+                    !isLineInsidePolygon(
+                        newGenotype[0][i],
+                        newGenotype[0][i + 1] % newGenotype[0].length,
+                        propertyLine
+                    )
+                ) {
                     isValid = false;
+                    inValidType = "over propertyLine";
                 }
             }
 
             for (let i = 1; i < levelNumber && isValid; i++) {
                 for (let j = 0; j < segments; j++) {
                     if (
-                        !isPointInPolygon(newGenotype[i][j], newGenotype[i - 1])
+                        !isLineInsidePolygon(
+                            newGenotype[0][i],
+                            newGenotype[0][i + 1] % newGenotype[0].length,
+                            newGenotype[i - 1]
+                        )
                     ) {
                         isValid = false;
+                        inValidType = "over previous floor";
                     }
                 }
             }
@@ -98,6 +120,7 @@ function mutate(genotype) {
                 )
             ) {
                 isValid = false;
+                inValidType = "central point over first floor";
             }
         }
         attempts++;
@@ -105,6 +128,8 @@ function mutate(genotype) {
     // console.log("IsValid", isValid);
     // Return the original genotype if a valid mutation wasn't found
     // Otherwise, return the valid new genotype
+    // if (!isValid) console.log("attempts", attempts, inValidType);
+
     return isValid ? newGenotype : genotype;
 }
 
@@ -186,5 +211,6 @@ function crossOver(genotype1, genotype2) {
     // console.log("IsValid", isValid);
     // Return the original genotype if a valid crossover wasn't found
     // Otherwise, return the valid new genotype
-    return isValid ? newGenotype : genotype;
+    // if (!isValid) console.log("crossing failed");
+    return isValid ? newGenotype : genotype1;
 }

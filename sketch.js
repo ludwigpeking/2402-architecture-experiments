@@ -4,11 +4,12 @@ const propertyLineNodeNumber = 6;
 const windowSize = 300;
 const windowNumber = [3, 3];
 const headBarSize = 150;
+const recording = false;
 // const propertyLineNodes = [
 //     50, 100, 200, 50, 300, 100, 300, 200, 200, 200, 100, 300,
 // ];
-const propertyLineNodes = convert2DArrayTo1D(
-    generateNonIntersectingPolygon(propertyLineNodeNumber)
+const propertyLineNodes = p5vectorTo1DArray(
+    generateNonIntersectingPolygon(6, 0.19)
 ); //normalized to 1
 
 // const accessLine = [2, 3, 4]; //accessible segment index or indices in the property line
@@ -16,8 +17,8 @@ const accessLine = accessLineGeneration(3);
 const propertyLine = createPropertyline(propertyLineNodes, windowSize);
 const externalEntranceRate = 0.1;
 const lineOpacity = 10;
-const numberOfSegments = 12;
-const recording = false;
+const numberOfSegments = 8;
+
 let mutationMagnitude = 1;
 // let efficiencySamples = 100;
 const efficiencies = [];
@@ -34,7 +35,7 @@ function setup() {
         );
         houses.push(house);
     }
-    //sort the houses by efficiency
+    // sort the houses by efficiency
     houses.sort((a, b) => b.efficiency - a.efficiency);
     background(200);
     showTheGridOfHouses(3, 3);
@@ -92,7 +93,7 @@ function setup() {
 
 function draw() {
     frameRate(10);
-    if (frameCount > 1) {
+    if (frameCount > 100) {
         noLoop();
     }
     //print frame number
@@ -221,7 +222,7 @@ function showTheGridOfHouses(u, v) {
                 drawPropertyLineAndAccessLine(propertyLine, accessLine);
                 houses[j * u + i].draw();
                 houses[j * v + i].analyseEfficiency(
-                    300,
+                    3000,
                     externalEntranceRate,
                     true
                 );
