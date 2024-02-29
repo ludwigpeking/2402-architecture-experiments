@@ -3,7 +3,7 @@
     <head>
         <script src="p5.js"></script>
         <script src="utils.js"></script>
-               
+
         <script src="house.js"></script>
         <script src="generation.js"></script>
         <link rel="stylesheet" type="text/css" href="style.css" />
@@ -14,5 +14,22 @@
 
         <meta charset="utf-8" />
     </head>
-    <body></body>
+
+    <body>
+        <input type="file" id="file-input" />
+        <script>
+            document
+                .getElementById("file-input")
+                .addEventListener("change", function (e) {
+                    const fileReader = new FileReader();
+                    fileReader.onload = function (event) {
+                        const data = JSON.parse(event.target.result);
+                        const { inputsArray, outputsArray, fitnessArray } =
+                            data;
+                        // Now you can use inputsArray, outputsArray, and fitnessArray
+                    };
+                    fileReader.readAsText(e.target.files[0]);
+                });
+        </script>
+    </body>
 </html>

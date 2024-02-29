@@ -2,129 +2,145 @@ const propertyLineNodeNumber = 6;
 const houseEdgeNumber = 7;
 const windowSize = 300;
 const lineOpacity = 1;
+const inputsArray = [];
+const outputsArray = [];
+const fitnessArray = [];
+const generationIterations = 100;
+
 function setup() {
-    createCanvas(400, 400);
-
-    const propertyLineNodesUnarranged = generateNonIntersectingPolygon(6, 0.19);
-    const propertyLineNodesVectors = rearrangePolygon(
-        propertyLineNodesUnarranged
-    );
-    const propertyLineNodes = p5vectorTo1DArray(propertyLineNodesVectors);
-
-    const accessLine = accessLineGeneration(3);
-    console.log("accessLine", accessLine);
-    const oneHot = accessIndexToOneHot(accessLine, propertyLineNodeNumber);
-
-    //inputs combine propertyLineNodes and oneHot
-
-    const inputs = propertyLineNodes.concat(oneHot);
-    // console.log(inputs);
-
-    propertyLine = createPropertyline(propertyLineNodes, windowSize); //p5.Vector array
-    // console.log(normalizedrAreaPerimeteRatio(propertyLine));
-    drawPropertyLineAndAccessLine(propertyLine, accessLine);
-    drawIndices(propertyLine, accessLine);
-
-    //from here, generate the output set
-    const innerContourUnordered = generateNonIntersectingPolygonWithinPolygon(
-        houseEdgeNumber,
-        0.1,
-        propertyLine
-    );
-
-    const innerContour = rearrangePolygon(innerContourUnordered);
-    drawIndices(innerContour, []);
-    console.log("innerContour", innerContour); //p5.Vector array
-    //convert innerContour to 1D array, normalized by windowSize
-    const outputs = p5vectorTo1DArray(innerContour);
-    //normalize the outputs
-    outputs.forEach((output, index) => {
-        outputs[index] = output / windowSize;
-    });
-    console.log("outputs", outputs);
-    drawPropertyLineAndAccessLine(innerContour, []);
-    let randomCentralPoint = createRandomPointInPolygon(innerContour);
-    circle(randomCentralPoint.x, randomCentralPoint.y, 5);
-    console.log("randomCentralPoint", randomCentralPoint);
-    const randomCentralPointArray = p5vectorTo1DArray([randomCentralPoint]);
-    outputs.push(randomCentralPointArray[0] / windowSize);
-    outputs.push(randomCentralPointArray[1] / windowSize);
-    console.log("outputs", outputs);
-
-    //fitness
-
-    let shortestRoute = null;
-    let shortestDistance = Infinity;
-    let chosenAccessLineIndex = null;
-    for (let i = 0; i < accessLine.length; i++) {
-        const route = simplifiedAStarPointToEdge(
-            randomCentralPoint,
-            propertyLine,
-            accessLine[i],
-            false
+    // createCanvas(400, 400);
+    for (let i = 0; i < generationIterations; i++) {
+        const propertyLineNodesUnarranged = generateNonIntersectingPolygon(
+            6,
+            0.19
         );
-        if (calculatePathDistance(route) < shortestDistance) {
-            shortestRoute = route;
-            shortestDistance = calculatePathDistance(route);
-            chosenAccessLineIndex = accessLine[i];
+        const propertyLineNodesVectors = rearrangePolygon(
+            propertyLineNodesUnarranged
+        );
+        const propertyLineNodes = p5vectorTo1DArray(propertyLineNodesVectors);
+
+        const accessLine = accessLineGeneration(3);
+        console.log("accessLine", accessLine);
+        const oneHot = accessIndexToOneHot(accessLine, propertyLineNodeNumber);
+
+        //inputs combine propertyLineNodes and oneHot
+
+        const inputs = propertyLineNodes.concat(oneHot);
+        // console.log(inputs);
+
+        propertyLine = createPropertyline(propertyLineNodes, windowSize); //p5.Vector array
+        // console.log(normalizedrAreaPerimeteRatio(propertyLine));
+        // drawPropertyLineAndAccessLine(propertyLine, accessLine);
+        // drawIndices(propertyLine, accessLine);
+
+        //from here, generate the output set
+        const innerContourUnordered =
+            generateNonIntersectingPolygonWithinPolygon(
+                houseEdgeNumber,
+                0.1,
+                propertyLine
+            );
+
+        const innerContour = rearrangePolygon(innerContourUnordered);
+        // drawIndices(innerContour, []);
+        console.log("innerContour", innerContour); //p5.Vector array
+        //convert innerContour to 1D array, normalized by windowSize
+        const outputs = p5vectorTo1DArray(innerContour);
+        //normalize the outputs
+        outputs.forEach((output, index) => {
+            outputs[index] = output / windowSize;
+        });
+
+        // drawPropertyLineAndAccessLine(innerContour, []);
+        let randomCentralPoint = createRandomPointInPolygon(innerContour);
+        circle(randomCentralPoint.x, randomCentralPoint.y, 5);
+        console.log("randomCentralPoint", randomCentralPoint);
+        const randomCentralPointArray = p5vectorTo1DArray([randomCentralPoint]);
+        outputs.push(randomCentralPointArray[0] / windowSize);
+        outputs.push(randomCentralPointArray[1] / windowSize);
+        console.log("outputs", outputs);
+
+        //fitness
+
+        let shortestRoute = null;
+        let shortestDistance = Infinity;
+        let chosenAccessLineIndex = null;
+        for (let i = 0; i < accessLine.length; i++) {
+            const route = simplifiedAStarPointToEdge(
+                randomCentralPoint,
+                propertyLine,
+                accessLine[i],
+                false
+            );
+            if (calculatePathDistance(route) < shortestDistance) {
+                shortestRoute = route;
+                shortestDistance = calculatePathDistance(route);
+                chosenAccessLineIndex = accessLine[i];
+            }
         }
-    }
-    drawPolygon(shortestRoute);
-    //check the route's intersection with the inner contour
-    const intersectPositions = [];
-    let doorPosition = null;
-    for (let i = 0; i < innerContour.length; i++) {
-        for (let j = 0; j < shortestRoute.length; j++) {
-            if (
-                lineIntersect(
-                    innerContour[i],
-                    innerContour[(i + 1) % innerContour.length],
-                    shortestRoute[j],
-                    shortestRoute[(j + 1) % shortestRoute.length]
-                )
-            ) {
-                intersectPositions.push(
+        // drawPolygon(shortestRoute);
+        //check the route's intersection with the inner contour
+        const intersectPositions = [];
+        let doorPosition = null;
+        for (let i = 0; i < innerContour.length; i++) {
+            for (let j = 0; j < shortestRoute.length; j++) {
+                if (
                     lineIntersect(
                         innerContour[i],
                         innerContour[(i + 1) % innerContour.length],
                         shortestRoute[j],
                         shortestRoute[(j + 1) % shortestRoute.length]
                     )
-                );
+                ) {
+                    intersectPositions.push(
+                        lineIntersect(
+                            innerContour[i],
+                            innerContour[(i + 1) % innerContour.length],
+                            shortestRoute[j],
+                            shortestRoute[(j + 1) % shortestRoute.length]
+                        )
+                    );
+                }
             }
         }
-    }
-    //compare which intersectPosition is furthest from the central point
-    let furthestDistance = 0;
-    for (let i = 0; i < intersectPositions.length; i++) {
-        if (
-            p5.Vector.dist(randomCentralPoint, intersectPositions[i]) >
-            furthestDistance
-        ) {
-            furthestDistance = p5.Vector.dist(
-                randomCentralPoint,
-                intersectPositions[i]
-            );
-            doorPosition = intersectPositions[i];
+        //compare which intersectPosition is furthest from the central point
+        let furthestDistance = 0;
+        for (let i = 0; i < intersectPositions.length; i++) {
+            if (
+                p5.Vector.dist(randomCentralPoint, intersectPositions[i]) >
+                furthestDistance
+            ) {
+                furthestDistance = p5.Vector.dist(
+                    randomCentralPoint,
+                    intersectPositions[i]
+                );
+                doorPosition = intersectPositions[i];
+            }
         }
-    }
 
-    if (doorPosition) {
-        fill(255, 0, 0);
-        noStroke();
-        circle(doorPosition.x, doorPosition.y, 5);
+        if (doorPosition) {
+            fill(255, 0, 0);
+            noStroke();
+            circle(doorPosition.x, doorPosition.y, 5);
+        }
+        //fitness function
+        const efficiency = analyseEfficiency(
+            innerContour,
+            propertyLine,
+            doorPosition,
+            chosenAccessLineIndex,
+            30000,
+            0.1,
+            false
+        );
+        console.log("efficiency", efficiency);
+        inputsArray.push(inputs);
+        outputsArray.push(outputs);
+        fitnessArray.push(efficiency);
     }
-    //fitness function
-    const efficiency = analyseEfficiency(
-        innerContour,
-        propertyLine,
-        doorPosition,
-        chosenAccessLineIndex,
-        30000,
-        0.1,
-        false
-    );
-    console.log("efficiency", efficiency);
+    console.log("inputsArray", inputsArray);
+    console.log("outputsArray", outputsArray);
+    console.log("fitnessArray", fitnessArray);
 }
 //
 //_________________________
