@@ -3,6 +3,7 @@ let house;
 let propertyLine;
 let accessLine;
 let newInnerCountour;
+const data = [];
 
 const lineOpacity = 50;
 

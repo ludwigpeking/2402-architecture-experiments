@@ -641,44 +641,129 @@ function generateNonIntersectingPolygon(n = 6, threshould = 0.18) {
 }
 
 function generateNonIntersectingPolygonWithinPolygon(
-    n = 6,
-    threshould = 0.1,
-    polygon
+    n,
+    threshold,
+    outerPolygon
 ) {
+    let attempts = 0;
+    const maxAttempts = 1000; // Prevent infinite loops
     let vertices = [];
-    for (let i = 0; i < n; i++) {
-        vertices.push(createRandomPointInPolygon(polygon));
-    }
-    while (checkIntersections(vertices)) {
-        shuffle1(vertices);
-    }
+    let validPolygon = false;
 
-    while (normalizedrAreaPerimeteRatio(vertices) < threshould) {
-        vertices = generateNonIntersectingPolygonWithinPolygon(
-            n,
-            threshould,
-            polygon
-        );
-    }
-    //check if the inner polygon's edges intersect with the outer polygon
-    for (let i = 0; i < polygon.length; i++) {
-        for (let j = 0; j < vertices.length; j++) {
-            if (
-                lineIntersect(
-                    polygon[i],
-                    polygon[(i + 1) % polygon.length],
-                    vertices[j],
-                    vertices[(j + 1) % vertices.length]
-                )
-            ) {
-                return generateNonIntersectingPolygonWithinPolygon(
-                    n,
-                    threshould,
-                    polygon
-                );
+    while (!validPolygon && attempts < maxAttempts) {
+        vertices = [];
+        // Generate n random points within the outer polygon
+        for (let i = 0; i < n; i++) {
+            vertices.push(createRandomPointInPolygon(outerPolygon));
+        }
+
+        // Check if the generated polygon intersects itself
+        if (!checkIntersections(vertices)) {
+            // Sort vertices to ensure they form a simple polygon (non-intersecting)
+            sortVertices(vertices);
+
+            // Check if the sorted polygon meets the area-perimeter threshold
+            if (normalizedrAreaPerimeteRatio(vertices) >= threshold) {
+                // Check for intersections with the outer polygon
+                let intersectsOuter = false;
+                for (let i = 0; i < vertices.length; i++) {
+                    for (let j = 0; j < outerPolygon.length; j++) {
+                        if (
+                            lineIntersect(
+                                vertices[i],
+                                vertices[(i + 1) % vertices.length],
+                                outerPolygon[j],
+                                outerPolygon[(j + 1) % outerPolygon.length]
+                            )
+                        ) {
+                            intersectsOuter = true;
+                            break;
+                        }
+                    }
+                    if (intersectsOuter) break;
+                }
+
+                if (!intersectsOuter) {
+                    validPolygon = true; // The polygon is valid
+                }
             }
         }
+
+        attempts++;
+    }
+
+    if (!validPolygon) {
+        console.error(
+            "Failed to generate a valid polygon within the given constraints."
+        );
+        return []; // Return an empty array or handle this case as needed
     }
 
     return vertices;
+}
+
+function accessIndexToOneHot(indices, onHotLength) {
+    const oneHot = new Array(onHotLength).fill(0);
+    for (let i = 0; i < indices.length; i++) {
+        oneHot[indices[i]] = 1;
+    }
+    return oneHot;
+}
+
+//rearange the order of nodes of the polygon, make the node with the smallest x value the first node, and the rest nodes are in the counter clockwise order
+function rearrangePolygon(polygon) {
+    // let minIndex = 0;
+    // for (let i = 1; i < polygon.length; i++) {
+    //     if (polygon[i].x < polygon[minIndex].x) {
+    //         minIndex = i;
+    //     }
+    // }
+    // console.log("minIndex", minIndex);
+    // let rearrangedPolygon = [];
+    // for (let i = 0; i < polygon.length; i++) {
+    //     rearrangedPolygon.push(polygon[(minIndex + i) % polygon.length]);
+    // }
+    rearrangedPolygon = rearrangePolygonCounterClockwise(polygon);
+
+    return rearrangedPolygon;
+}
+
+function calculateAngle(centroid, vertex) {
+    return Math.atan2(vertex.y - centroid.y, vertex.x - centroid.x);
+}
+
+function rearrangePolygonCounterClockwise(polygon) {
+    const centroid = calculateCentroid(polygon);
+
+    polygon.sort((a, b) => {
+        return calculateAngle(centroid, a) - calculateAngle(centroid, b);
+    });
+
+    let minIndex = polygon.findIndex(
+        (vertex) => vertex.x === Math.min(...polygon.map((v) => v.x))
+    );
+
+    return [...polygon.slice(minIndex), ...polygon.slice(0, minIndex)];
+}
+
+function drawIndices(propertyLine, accessLine) {
+    //draw the indices of the property line nodes and the access line indices with p5 text
+    for (let i = 0; i < propertyLine.length; i++) {
+        noStroke();
+        fill(255, 0, 0);
+        text(i, propertyLine[i].x, propertyLine[i].y);
+    }
+    for (let i = 0; i < accessLine.length; i++) {
+        noStroke();
+        fill(0, 0, 255);
+        text(
+            i,
+            (propertyLine[accessLine[i]].x +
+                propertyLine[(accessLine[i] + 1) % propertyLineNodeNumber].x) /
+                2,
+            (propertyLine[accessLine[i]].y +
+                propertyLine[(accessLine[i] + 1) % propertyLineNodeNumber].y) /
+                2
+        );
+    }
 }
